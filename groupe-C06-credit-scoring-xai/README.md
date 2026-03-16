@@ -2,4 +2,5 @@
 Membres :
 - Shaili Tuil
 - Elsa Bodenan
-Projet initialise dans PyCharm.
+
+Projet initialise test pycharm. 
