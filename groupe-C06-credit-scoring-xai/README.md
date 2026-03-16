@@ -2,3 +2,4 @@
 Membres :
 - Shaili Tuil
 - Elsa Bodenan
+Projet initialise dans PyCharm.
