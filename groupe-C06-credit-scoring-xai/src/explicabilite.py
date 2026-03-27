@@ -54,7 +54,7 @@ X_test_raw = pd.read_csv(PROCESSED_DIR / "X_test_raw.csv")
 X_train_raw = pd.read_csv(PROCESSED_DIR / "X_train_raw.csv")
 y_train = pd.read_csv(PROCESSED_DIR / "y_train.csv").squeeze()
 y_test = pd.read_csv(PROCESSED_DIR / "y_test.csv").squeeze()
-
+# On charge le meilleur modèle sélectionné lors de l'étape de modélisation
 model = joblib.load(MODELS_DIR / "best_model.pkl")
 
 with open(PROCESSED_DIR / "metadata.json", encoding="utf-8") as f:
@@ -74,6 +74,7 @@ print(f"Features : {len(feature_names)}")
 
 X_test_arr = X_test.values
 X_train_arr = X_train.values
+# y_prob : la probabilité estimée de défaut pour chaque client (entre 0 et 1)
 y_prob = model.predict_proba(X_test_arr)[:, 1]
 y_pred = model.predict(X_test_arr)
 
@@ -82,11 +83,13 @@ print(f"Score moyen (test) : {y_prob.mean():.3f}")
 # ============================================================
 # SHAP — EXPLAINER
 # ============================================================
-
+# SHAP calcule pour chaque variable sa contribution à la décision du modèle.
+# C'est l'outil principal pour comprendre "pourquoi le modèle a dit oui ou non".
 print("\n─── SHAP : calcul des valeurs ───")
 explainer = shap.TreeExplainer(model)
 shap_values = explainer.shap_values(X_test_arr)
 
+# Certains modèles retournent les valeurs SHAP pour chaque classe : on prend celle de la classe "défaut" (index 1)
 if isinstance(shap_values, list):
     shap_values = shap_values[1]
 
@@ -100,7 +103,7 @@ print(f"  Shape shap_values : {shap_values.shape}")
 # ============================================================
 # SHAP GLOBAL — BEESWARM
 # ============================================================
-
+# Vue d'ensemble : quelles variables ont le plus d'impact sur l'ensemble des clients ?
 print("\n─── SHAP Global : Beeswarm ───")
 plt.figure(figsize=(10, 7))
 shap.summary_plot(
@@ -139,7 +142,7 @@ print(f"  ✓ {RESULTS_DIR / 'shap_bar.png'}")
 # ============================================================
 # SHAP LOCAL — WATERFALL (3 profils)
 # ============================================================
-
+# On explique 3 cas concrets : le client le plus sûr, le plus risqué, et un cas limite
 print("\n─── SHAP Local : Waterfall (3 profils) ───")
 
 idx_accepted = int(np.argmax(y_prob))
@@ -177,7 +180,7 @@ for ptype, idx in profiles.items():
 # ============================================================
 # SHAP SCATTER — DÉPENDANCE
 # ============================================================
-
+# On regarde comment les 2 variables les plus importantes influencent le score selon leur valeur
 print("\n─── SHAP Scatter : dépendance ───")
 mean_abs_shap = np.abs(shap_values).mean(axis=0)
 top2_idx = np.argsort(mean_abs_shap)[::-1][:2]
@@ -208,7 +211,8 @@ print(f"  ✓ {RESULTS_DIR / 'shap_scatter.png'}")
 # ============================================================
 # LIME — 10 PROFILS
 # ============================================================
-
+# LIME est une alternative à SHAP
+# On l'utilise ici sur 10 profils aléatoires pour comparer ses conclusions avec celles de SHAP.
 print(f"\n─── LIME sur {N_LIME_PROFILES} profils ───")
 
 try:
@@ -241,7 +245,7 @@ try:
                 "pred_prob": round(float(y_prob[idx]), 3),
                 "lime_top_features": top_feats,
             })
-
+            # On génère un graphique seulement pour le premier profil, comme exemple visuel
             if i == 0:
                 fig = exp.as_pyplot_figure(label=1)
                 plt.title(f"LIME — Profil exemple (prob={y_prob[idx]:.3f})", fontweight="bold")
@@ -263,7 +267,7 @@ except ImportError:
 # ============================================================
 # COMPARAISON SHAP VS LIME
 # ============================================================
-
+# On vérifie si SHAP et LIME sont d'accord sur les 3 variables les plus importantes pour chaque profil.
 print("\n─── Comparaison SHAP vs LIME ───")
 
 rows_comp = []
@@ -310,9 +314,9 @@ else:
 # ============================================================
 # CONTREFACTUELS DiCE
 # ============================================================
-
+# Les contrefactuels répondent à la question : "Qu'aurait-il fallu changer pour que la décision soit différente ?"
 print("\n─── Contrefactuels DiCE ───")
-
+# On cible les clients les plus à risque pour leur proposer des pistes d'amélioration
 refused_indices = np.where(y_prob < 0.4)[0][:3]
 if len(refused_indices) == 0:
     refused_indices = np.argsort(y_prob)[:3]
@@ -332,7 +336,7 @@ try:
     )
     m = dice_ml.Model(model=model, backend="sklearn")
     exp_dice = Dice(d, m, method="random")
-
+    # On ne fait pas varier les variables qu'on ne peut pas changer (âge, genre, etc.)
     immutable = [f for f in feature_names if any(k in f.lower() for k in ["age", "statut_civil"])]
 
     cf_results = []
@@ -363,7 +367,7 @@ except ImportError:
     print("   DiCE non installé. Installez avec : pip install dice-ml")
 except Exception as e:
     print(f"  DiCE erreur : {e}")
-
+# Si DiCE n'est pas disponible, on génère des suggestions manuellement en testant de petites modifications
 if not dice_ok:
     print("  → Contrefactuels manuels (fallback)...")
 
@@ -372,7 +376,7 @@ if not dice_ok:
         original = X_test_arr[idx].copy()
         score_orig = float(y_prob[idx])
         suggestions = {}
-
+        # Pour chaque variable numérique, on cherche la plus petite modification qui améliore le score
         for j, feat in enumerate(feature_names):
             if feat not in num_features:
                 continue

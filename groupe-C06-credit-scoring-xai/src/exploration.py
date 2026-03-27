@@ -39,14 +39,17 @@ RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def build_preprocessor(X: pd.DataFrame):
+    # On sépare les colonnes numériques des colonnes texte/catégorielles
     num_features = X.select_dtypes(include=["int64", "float64"]).columns.tolist()
     cat_features = X.select_dtypes(include=["object", "category"]).columns.tolist()
+
+    # Pour les nombres : on remplace les valeurs manquantes par la médiane, puis on normalise
 
     numeric_pipeline = Pipeline([
         ("imputer", SimpleImputer(strategy="median")),
         ("scaler", StandardScaler())
     ])
-
+    # Pour les catégories : on remplace les valeurs manquantes par la plus fréquente, puis on encode en chiffres
     categorical_pipeline = Pipeline([
         ("imputer", SimpleImputer(strategy="most_frequent")),
         ("encoder", OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1))
@@ -73,7 +76,7 @@ def prepare_german():
         "emploi", "nb_personnes_charge", "telephone", "travailleur_etranger",
         "defaut"
     ]
-
+    # On accepte le fichier CSV ou le fichier .data brut, selon ce qui est disponible
     if raw_path_csv.exists():
         df = pd.read_csv(raw_path_csv)
     elif raw_path_data.exists():
@@ -118,14 +121,14 @@ def prepare_lending_club():
 
     print(f"Dataset brut : {df.shape}")
 
-    # On garde seulement les cas clairement exploitables pour une cible binaire
+    # On garde uniquement les prêts avec un résultat clair : remboursé ou en défaut
     valid_status = ["Fully Paid", "Charged Off"]
     df = df[df["loan_status"].isin(valid_status)].copy()
 
     # 1 = défaut / prêt problématique, 0 = non défaut
     df["defaut"] = (df["loan_status"] == "Charged Off").astype(int)
 
-    # Colonnes à supprimer : identifiants, texte libre, fuite évidente ou inutiles pour la V1
+
     drop_cols = [
         "loan_status",
         "id",
@@ -138,7 +141,6 @@ def prepare_lending_club():
     ]
     df = df.drop(columns=[c for c in drop_cols if c in df.columns])
 
-    # Colonnes simples et raisonnables pour une première version propre
     keep_cols = [
     "loan_amnt",
     "term",
@@ -202,13 +204,14 @@ def prepare_lending_club():
     if "term" in df.columns:
         df["term"] = pd.to_numeric(df["term"], errors="coerce")
 
-    # Option pratique pour ne pas faire exploser le PC si le CSV est énorme
+    # Si le fichier est très grand, on prend un échantillon de 50 000 lignes pour ne pas saturer la mémoire
     if len(df) > 50000:
         df = df.sample(n=50000, random_state=42).copy()
 
     print(f"Dataset nettoyé : {df.shape}")
     print(f"Taux de défaut : {df['defaut'].mean():.2%}")
 
+    # Lending Club n'a pas d'info directe sur l'âge ou le genre
     sensitive_features = {
         "age": None,
         "gender": None
@@ -230,6 +233,7 @@ def save_outputs(
     target_name: str,
     sensitive_features: dict
 ):
+
     dataset_processed_dir = PROCESSED_DIR / dataset_name
     dataset_models_dir = MODELS_DIR / dataset_name
 
@@ -240,12 +244,12 @@ def save_outputs(
     X_test_df.to_csv(dataset_processed_dir / "X_test.csv", index=False)
     y_train.reset_index(drop=True).to_csv(dataset_processed_dir / "y_train.csv", index=False, header=[target_name])
     y_test.reset_index(drop=True).to_csv(dataset_processed_dir / "y_test.csv", index=False, header=[target_name])
-
+    # Sauvegarde des données brutes (pour les afficher lisiblement dans le dashboard)
     X_train_raw.reset_index(drop=True).to_csv(dataset_processed_dir / "X_train_raw.csv", index=False)
     X_test_raw.reset_index(drop=True).to_csv(dataset_processed_dir / "X_test_raw.csv", index=False)
-
+    # On sauvegarde aussi l'objet de transformation pour pouvoir l'appliquer sur de nouvelles données plus tard
     joblib.dump(preprocessor, dataset_models_dir / "preprocessor.pkl")
-
+    # Le fichier metadata regroupe toutes les infos utiles sur le dataset (noms de colonnes, taux de défaut, etc.)
     metadata = {
         "dataset_name": dataset_name,
         "target_name": target_name,
@@ -286,7 +290,7 @@ def run_pipeline(dataset_name: str):
 
     print(f"Numériques ({len(num_features)}) : {num_features}")
     print(f"Catégorielles ({len(cat_features)}) : {cat_features}")
-
+    # On divise en 80% pour entraîner et 20% pour tester, en gardant le même ratio de défauts dans chaque partie
     X_train_raw, X_test_raw, y_train, y_test = train_test_split(
         X,
         y,
@@ -294,7 +298,7 @@ def run_pipeline(dataset_name: str):
         random_state=RANDOM_STATE,
         stratify=y
     )
-
+    # On applique la transformation sur le train, puis on la réutilise telle quelle sur le test
     X_train_arr = preprocessor.fit_transform(X_train_raw)
     X_test_arr = preprocessor.transform(X_test_raw)
 

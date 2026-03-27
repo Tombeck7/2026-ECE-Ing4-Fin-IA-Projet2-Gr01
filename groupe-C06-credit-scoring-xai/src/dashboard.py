@@ -23,7 +23,7 @@ from sklearn.metrics import (
     accuracy_score,
 )
 
-
+# Traduction des codes du dataset German en labels lisibles pour l'affichage dans le dashboard
 GERMAN_MAPPINGS = {
     "statut_compte": {
         "A11": "Compte < 0€",
@@ -234,7 +234,8 @@ THEME = dict(
 # ============================================================
 # CHARGEMENT
 # ============================================================
-
+# @st.cache_resource évite de recharger les fichiers à chaque interaction de l'utilisateur.
+# Tout est chargé une seule fois et gardé en mémoire tant que la session est active.
 @st.cache_resource
 def load_all(dataset):
     data_dir = os.path.join(DATA_ROOT, dataset)
@@ -252,7 +253,7 @@ def load_all(dataset):
 
         with open(os.path.join(data_dir, "metadata.json"), encoding="utf-8") as f:
             metadata = json.load(f)
-
+        # On charge aussi les modèles individuels s'ils existent, pour les comparer dans le dashboard
         extra = {}
         for name in ["xgboost", "lightgbm", "logistic"]:
             p = os.path.join(mdl_dir, f"{name}.pkl")
@@ -278,6 +279,7 @@ def load_all(dataset):
 
 @st.cache_resource
 def compute_shap(_model, X_test_arr):
+    # Calcul des valeurs SHAP mis en cache : ce calcul peut être long,donc on ne le refait pas à chaque changement de page
     explainer = shap.TreeExplainer(_model)
     shap_values = explainer.shap_values(X_test_arr)
 
@@ -341,7 +343,7 @@ st.markdown(f"""
 # ============================================================
 # GARDE-FOU
 # ============================================================
-
+# Si les fichiers n'ont pas encore été générés par les autres scripts, on arrête là et on affiche un message d'erreur clair avec les commandes à lancer
 if data is None:
     st.error(
         f"**Fichiers manquants pour `{dataset}`.** Lancez les scripts dans l'ordre :\n\n"
@@ -579,6 +581,8 @@ elif "Fairness" in page:
 
     from sklearn.metrics import confusion_matrix as cm_fn
 
+
+    # Calcule les métriques de performance séparément pour chaque groupe
     def grp_metrics(groups):
         rows = []
         for g in np.unique(groups):
@@ -658,7 +662,7 @@ elif "Fairness" in page:
             if df_g.empty or len(df_g) < 2:
                 kpi_cols[i].warning(f"Données insuffisantes pour {var}")
                 continue
-
+            # En dessous de 0.80 (règle des 4/5), le modèle est considéré discriminant.
             accept_rate = 1 - df_g["Taux défaut prédit"]
             di_ratio = accept_rate.min() / accept_rate.max() if accept_rate.max() > 0 else 0
 
@@ -804,7 +808,7 @@ elif "Fairness" in page:
 # ============================================================
 # PAGE : SCORING INDIVIDUEL
 # ============================================================
-
+# Permet de saisir les informations d'un client manuellement et d'obtenir son score en temps réel, avec une explication des variables qui ont le plus pesé dans la décision.
 elif "Scoring" in page:
     st.markdown("""
     <div class='sec-title'>Scoring d'un nouveau client</div>
@@ -943,7 +947,7 @@ elif "Scoring" in page:
                 st.markdown(
                     f"- {icon} `{feat}` = **{feat_v}** → {impact} ({val:+.4f})"
                 )
-
+            # Si le client est refusé, on propose des pistes concrètes d'amélioration en comparant ses valeurs à celles des bons payeurs
             if score >= 0.5:
                 st.markdown("<br>**Pistes d'amélioration possibles :**", unsafe_allow_html=True)
                 bad = [(f, v) for f, v in contribs if v > 0][:3]

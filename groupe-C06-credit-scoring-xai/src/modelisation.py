@@ -38,6 +38,8 @@ def load_data(dataset):
 
 
 def get_models():
+    # On commence toujours avec la régression logistique comme base de comparaison.
+    # class_weight="balanced" compense automatiquement si les défauts sont rares dans les données.
     models = {
         "logistic": LogisticRegression(max_iter=2000, class_weight="balanced")
     }
@@ -69,7 +71,7 @@ def get_models():
 
 def evaluate(model, X_test, y_test):
     y_pred = model.predict(X_test)
-
+    # On calcule l'AUC seulement si le modèle peut donner des probabilités (pas juste 0 ou 1)
     if hasattr(model, "predict_proba"):
         y_prob = model.predict_proba(X_test)[:, 1]
         roc_auc = roc_auc_score(y_test, y_prob)
@@ -100,7 +102,7 @@ def main(dataset):
     dataset_results_dir.mkdir(parents=True, exist_ok=True)
 
     results = []
-
+    # On garde une trace du meilleur modèle pour le sauvegarder séparément à la fin
     best_score = -1
     best_model = None
     best_name = None
@@ -114,11 +116,11 @@ def main(dataset):
 
         for k, v in metrics.items():
             print(f"{k}: {v:.4f}" if v is not None else f"{k}: None")
-
+        # On sauvegarde chaque modèle individuellement pour pouvoir les comparer dans le dashboard
         joblib.dump(model, dataset_models_dir / f"{name}.pkl")
 
         results.append({"model": name, **metrics})
-
+        # On préfère l'AUC pour comparer les modèles, et on prend le F1 si l'AUC n'est pas disponible
         score = metrics["roc_auc"] if metrics["roc_auc"] is not None else metrics["f1"]
 
         if score > best_score:
@@ -131,7 +133,7 @@ def main(dataset):
     results_df.to_csv(dataset_results_dir / "results.csv", index=False)
 
     print("\n🏆 Meilleur modèle :", best_name)
-
+    # On sauvegarde aussi le meilleur modèle sous un nom générique pour que le dashboard puisse le charger facilement
     joblib.dump(best_model, dataset_models_dir / "best_model.pkl")
 
 
