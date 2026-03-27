@@ -50,7 +50,7 @@ Pour évaluer les performances de la stratégie, vous devez lancer un **Backtest
 *   **Période de test** : Du `1er Janvier 2010` au `1er Janvier 2024`. (Couvre plusieurs crises majeures comme le krach COVID de 2020 et le marché baissier de 2022).
 *   **Capital initial** : `100 000 $`.
 *   **Brokerage Model** : Interactive Brokers (compte sur marge).
-*   **Benchmark** : SPY (S&P 500).
+*   **Benchmark** : SPY (S&P 500). 
 
 ### Lancer le test :
 
@@ -69,4 +69,4 @@ Dans la console de logs (onglet *Log* de QuantConnect), vous verrez l'algorithme
 *   **Désaccord (Prudence appliquée) :** `2022-02-01 | HMM=neutral KM=bear → BEAR`
 *   **Déclenchement du coupe-circuit :** `2020-03-09 | CRISE vol5=32.4% → BEAR forcé`
 
-Analysez l'onglet *Equity* et *Drawdown* de QuantConnect à la fin du test pour constater la réduction des pertes lors des marchés baissiers par rapport au Benchmark (SPY).
+Analysez l'onglet *Equity* et *Drawdown* de QuantConnect à la fin du test pour constater la réduction des pertes lors des marchés baissiers par rapport au Benchmark (SPY). 
