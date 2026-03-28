@@ -262,4 +262,4 @@ def get_settings() -> ProjectConfig:
     """
     cfg = ProjectConfig()
     cfg.create_directories()
-    return cfg
+    return cfg 
