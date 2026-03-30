@@ -1,8 +1,8 @@
 # C.7 - Détection de Fraude en Temps Réel
 
 **ECE Paris - Ing4 Finance - IA Probabiliste, Théorie des Jeux et ML**  
-**Groupe C7** | Tom Beckermann, [Membre 2], [Membre 3]  
-**GitHub** : [@Tombeck7], [@username2], [@username3]
+**Groupe C7** | Tom Beckermann, Noa Settbon 
+**GitHub** : [@Tombeck7], 
 
 ---
 
